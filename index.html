@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Web PWA sobre la carrera de Fernando Alonso en F1, WEC, Daytona e Indy 500." />
+  <meta name="theme-color" content="#071f1a" />
+  <title>Fernando Alonso Career Hub</title>
+  <link rel="canonical" href="https://example.netlify.app/" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./assets/icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+
+  <header class="site-header" id="inicio">
+    <nav class="nav" aria-label="Navegación principal">
+      <a class="brand" href="#inicio" aria-label="Inicio de Fernando Alonso Career Hub">
+        <span class="brand-number" aria-hidden="true">14</span>
+        <span>Alonso Career Hub</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="#biografia">Biografía</a>
+        <a href="#trayectoria">Trayectoria</a>
+        <a href="#disciplinas">Disciplinas</a>
+        <a href="#multimedia">Multimedia</a>
+        <a href="#fuentes">Fuentes</a>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar tema visual">🌙</button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="contenido">
+    <section class="hero section">
+      <div class="hero-copy">
+        <p class="eyebrow">Fernando Alonso Díaz · Oviedo · Nº 14</p>
+        <h1>Una carrera que salió de la F1 y conquistó resistencia, Daytona e Indianápolis.</h1>
+        <p class="lead">Proyecto web responsive, accesible y preparado como PWA. Resume la trayectoria de Fernando Alonso con biografía, estadísticas, línea temporal, galería integrada y vídeos recomendados.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#trayectoria">Ver trayectoria</a>
+          <a class="button ghost" href="#multimedia">Ver multimedia</a>
+        </div>
+      </div>
+      <aside class="hero-card" aria-label="Resumen rápido de Fernando Alonso">
+        <span class="badge">El Plan · modo carrera</span>
+        <h2>F1 + WEC + Daytona + Indy 500</h2>
+        <p>Del Renault R25 a Toyota, Cadillac y McLaren Indy. Una carrera marcada por adaptación, oficio y hambre competitiva.</p>
+      </aside>
+    </section>
+
+    <section class="section stats-section" aria-labelledby="stats-title">
+      <div class="section-heading">
+        <p class="eyebrow">Datos clave</p>
+        <h2 id="stats-title">Resumen de palmarés</h2>
+      </div>
+      <div class="stats-grid" id="statsGrid" aria-live="polite"></div>
+    </section>
+
+    <section class="section content-grid" id="biografia" aria-labelledby="bio-title">
+      <div class="section-heading sticky-heading">
+        <p class="eyebrow">Biografía</p>
+        <h2 id="bio-title">De Oviedo al automovilismo global</h2>
+      </div>
+      <article class="text-card">
+        <p>Fernando Alonso es uno de los pilotos españoles más importantes de la historia del motor. Nacido en Oviedo, llegó a la Fórmula 1 en 2001 y se consolidó con Renault, donde conquistó los campeonatos del mundo de 2005 y 2006.</p>
+        <p>Después pasó por proyectos de máximo impacto como McLaren, Ferrari, Alpine y Aston Martin. Su carrera no se quedó dentro de la Fórmula 1: también buscó retos en resistencia, ganó Le Mans, ganó Daytona y compitió en las 500 Millas de Indianápolis.</p>
+        <p>Esta web está pensada como entrega práctica: usa HTML semántico, CSS responsive, JavaScript para construir el DOM, contenido accesible, modo oscuro y estructura PWA instalable.</p>
+      </article>
+    </section>
+
+    <section class="section" id="trayectoria" aria-labelledby="timeline-title">
+      <div class="section-heading center">
+        <p class="eyebrow">Trayectoria</p>
+        <h2 id="timeline-title">Línea temporal interactiva</h2>
+        <p>Filtra por disciplina para revisar los momentos principales de su carrera.</p>
+      </div>
+      <div class="filter-bar" role="group" aria-label="Filtrar trayectoria">
+        <button class="filter-btn active" type="button" data-filter="Todos">Todos</button>
+        <button class="filter-btn" type="button" data-filter="F1">F1</button>
+        <button class="filter-btn" type="button" data-filter="WEC">WEC</button>
+        <button class="filter-btn" type="button" data-filter="Daytona">Daytona</button>
+        <button class="filter-btn" type="button" data-filter="Indy 500">Indy 500</button>
+      </div>
+      <div class="timeline" id="timelineList" aria-live="polite"></div>
+    </section>
+
+    <section class="section" id="disciplinas" aria-labelledby="disciplines-title">
+      <div class="section-heading center">
+        <p class="eyebrow">Disciplinas</p>
+        <h2 id="disciplines-title">Cuatro mundos competitivos</h2>
+      </div>
+      <div class="discipline-grid" id="disciplineGrid"></div>
+    </section>
+
+    <section class="section multimedia" id="multimedia" aria-labelledby="media-title">
+      <div class="section-heading center">
+        <p class="eyebrow">Multimedia</p>
+        <h2 id="media-title">Fotos y vídeos de carrera</h2>
+        <p class="media-warning">Las fotos están incrustadas dentro del código como Base64 para evitar rutas rotas en Netlify.</p>
+      </div>
+
+      <div class="subheading-row">
+        <h3>Galería fotográfica integrada</h3>
+        <button class="button small" id="checkImagesBtn" type="button">Comprobar imágenes</button>
+      </div>
+      <p class="status" id="imageStatus" role="status">Estado: pendiente de comprobación.</p>
+      <div class="gallery-grid" id="galleryGrid"></div>
+
+      <div class="subheading-row video-row-title">
+        <h3>Vídeos recomendados</h3>
+        <p>Se abren en YouTube para evitar bloqueos de inserción o iframes rotos.</p>
+      </div>
+      <div class="video-grid" id="videoGrid"></div>
+    </section>
+
+    <section class="section" id="fuentes" aria-labelledby="sources-title">
+      <div class="section-heading center">
+        <p class="eyebrow">Fuentes</p>
+        <h2 id="sources-title">Fuentes consultadas</h2>
+      </div>
+      <div class="sources-grid" id="sourcesGrid"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Proyecto educativo para prueba práctica. Contenido creado con fuentes públicas y créditos de imagen visibles.</p>
+    <a href="#inicio">Volver arriba</a>
+  </footer>
+</body>
+</html>

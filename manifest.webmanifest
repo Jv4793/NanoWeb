@@ -1,0 +1,19 @@
+{
+  "name": "Fernando Alonso Career Hub",
+  "short_name": "Alonso Hub",
+  "description": "PWA educativa sobre Fernando Alonso: F1, WEC, Daytona e Indy 500.",
+  "lang": "es",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#041712",
+  "theme_color": "#071f1a",
+  "icons": [
+    {
+      "src": "./assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
