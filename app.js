@@ -153,12 +153,8 @@ function checkImages() {
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   try {
-    // Limpia versiones antiguas del proyecto para evitar que una caché previa de Netlify enseñe imágenes rotas.
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map((registration) => registration.unregister()));
-    const cacheNames = await caches.keys();
-    await Promise.all(cacheNames.filter((name) => name.includes('alonso')).map((name) => caches.delete(name)));
-    await navigator.serviceWorker.register('./service-worker.js?version=final-v3', { scope: './' });
+    // El navegador actualiza el worker sin borrar la copia disponible sin conexión.
+    await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
   } catch (error) {
     console.warn('No se pudo registrar el Service Worker:', error);
   }
