@@ -53,6 +53,10 @@ async function main() {
           assert.ok((await page.locator('main').innerText()).includes('Resumen de palmarés'));
           await page.evaluate(async () => { await navigator.serviceWorker.ready; });
           await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+          await page.waitForFunction(() => document.querySelector('#offlineStatus').dataset.state === 'ready');
+          assert.equal(await page.locator('#offlineStatus').getAttribute('role'), 'status');
+          assert.equal(await page.locator('#offlineStatus').getAttribute('aria-live'), 'polite');
+          assert.equal(await page.locator('#offlineStatus').getAttribute('aria-atomic'), 'true');
           await page.evaluate(async () => {
             const foreign = await caches.open('unrelated-app');
             await foreign.put('./unrelated.txt', new Response('keep'));
@@ -60,6 +64,7 @@ async function main() {
           await context.setOffline(true);
           for (let attempt = 0; attempt < 3; attempt++) {
             await page.reload({ waitUntil: 'load' });
+            await page.waitForFunction(() => document.querySelector('#offlineStatus').dataset.state === 'offline');
             assert.equal(await page.locator('.stat-card').count(), 6);
             await page.locator('[data-filter="WEC"]').click();
             assert.equal(await page.locator('.timeline-item').count(), 2);
@@ -92,7 +97,21 @@ async function main() {
           assert.equal(await page.locator('.stat-card').count(), 6);
           assert.ok(await page.evaluate(async () => (await caches.keys()).includes('unrelated-app')));
           assert.equal(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length), 1);
-          console.log(`PASS ${route} ${viewport.width}x${viewport.height}: 3 offline reloads, filters, photos, theme, query, diagnostics, fallback, cache preservation`);
+          // Expulsión parcial de caché real: no anunciar una copia completa por tener solo un worker activo.
+          await page.evaluate(async () => {
+            const scope = (await navigator.serviceWorker.getRegistration()).scope;
+            const name = (await caches.keys()).find((entry) => entry.startsWith(`alonso-career-hub:${scope}:`));
+            await (await caches.open(name)).delete(new URL('./app.js', scope));
+          });
+          await context.setOffline(false);
+          await page.waitForFunction(() => document.querySelector('#offlineStatus').dataset.state === 'unavailable');
+          assert.equal(await page.locator('#offlineRetry').isVisible(), true);
+          assert.equal(await page.locator('#offlineRetry').innerText(), 'Comprobar actualización');
+          await page.locator('#offlineRetry').focus();
+          await page.keyboard.press('Enter');
+          await page.waitForFunction(() => document.querySelector('#offlineStatus').dataset.state === 'unavailable');
+          assert.match(await page.locator('#offlineStatus').innerText(), /incompleta/);
+          console.log(`PASS ${route} ${viewport.width}x${viewport.height}: accessible readiness, 3 offline reloads, filters, photos, theme, query, diagnostics, fallback, cache preservation, incomplete-copy detection`);
         } finally { await context.close(); }
       }
     }

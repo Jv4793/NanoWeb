@@ -4,7 +4,8 @@
   "scripts": {
     "check": "node --check app.js && node --check service-worker.js",
     "test": "node --test tests/*.test.cjs",
-    "test:browser": "node tests/browser-offline.cjs"
+    "test:browser": "node tests/browser-offline.cjs",
+    "test:migration": "node tests/migration-v3.cjs"
   },
   "engines": {
     "node": ">=22"

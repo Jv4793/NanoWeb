@@ -6,7 +6,6 @@ const vm = require('node:vm');
 
 const root = resolve(__dirname, '..');
 const workerSource = readFileSync(resolve(root, 'service-worker.js'), 'utf8');
-const appSource = readFileSync(resolve(root, 'app.js'), 'utf8');
 
 function worker({ scope = 'https://example.test/NanoWeb/', installFails = false } = {}) {
   const handlers = {};
@@ -65,7 +64,15 @@ function worker({ scope = 'https://example.test/NanoWeb/', installFails = false 
     });
     return response;
   }
-  return { lifecycle, request, stores, caches, deleted, networkRequests, offline: () => { online = false; } };
+  async function message(type) {
+    let answer;
+    const pending = [];
+    handlers.message({ data: { type }, ports: [{ postMessage: (value) => { answer = value; } }],
+      waitUntil: (promise) => pending.push(promise) });
+    await Promise.all(pending);
+    return answer;
+  }
+  return { lifecycle, request, message, stores, caches, deleted, networkRequests, offline: () => { online = false; } };
 }
 
 test('precache covers real local files including diagnostics', async () => {
@@ -152,26 +159,17 @@ test('POST, external requests, out-of-scope paths and unknown assets are not int
   assert.equal(app.request('./missing.js'), undefined);
 });
 
-test('registration survives repeated visits without deleting caches or other workers', async () => {
-  const registrations = [];
-  const errors = [];
-  const context = vm.createContext({
-    document: { querySelector: () => ({}), querySelectorAll: () => [] },
-    navigator: { serviceWorker: { register: async (...args) => registrations.push(args) } },
-    console: { warn: (...args) => errors.push(args) },
-  });
-  vm.runInContext(appSource.replace(/init\(\);\s*$/, ''), context);
-  await vm.runInContext('registerServiceWorker()', context);
-  await vm.runInContext('registerServiceWorker()', context);
-  assert.equal(errors.length, 0);
-  assert.equal(registrations.length, 2);
-  assert.equal(registrations[0][0], './service-worker.js');
+test('availability is confirmed only when every shell resource has a successful cached response', async () => {
+  const app = worker();
+  await app.lifecycle('install');
+  assert.equal((await app.message('CHECK_OFFLINE_SHELL')).complete, true);
+  const store = [...app.stores.values()][0];
+  store.delete('https://example.test/NanoWeb/app.js');
+  assert.equal((await app.message('CHECK_OFFLINE_SHELL')).complete, false);
+  store.set('https://example.test/NanoWeb/app.js', new Response('bad', { status: 500 }));
+  assert.equal((await app.message('CHECK_OFFLINE_SHELL')).complete, false);
 });
 
-test('unsupported service worker environments keep the static app usable', async () => {
-  const context = vm.createContext({
-    document: { querySelector: () => ({}), querySelectorAll: () => [] }, navigator: {},
-  });
-  vm.runInContext(appSource.replace(/init\(\);\s*$/, ''), context);
-  await vm.runInContext('registerServiceWorker()', context);
+test('availability protocol ignores unknown commands', async () => {
+  assert.equal(await worker().message('UNKNOWN_COMMAND'), undefined);
 });

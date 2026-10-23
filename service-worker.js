@@ -1,6 +1,6 @@
 // Cambiar la versión al modificar cualquier archivo de APP_SHELL.
 const CACHE_PREFIX = `alonso-career-hub:${self.registration.scope}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v5`;
 const APP_SHELL = [
   './',
   './index.html',
@@ -26,6 +26,19 @@ self.addEventListener('activate', (event) => {
         .map((name) => caches.delete(name))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'CHECK_OFFLINE_SHELL' || !event.ports?.[0]) return;
+  event.waitUntil((async () => {
+    let complete = false;
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const resources = await Promise.all(APP_SHELL.map((url) => cache.match(url)));
+      complete = resources.every((response) => response?.ok);
+    } catch { /* Una cuota o caché inaccesible no confirma disponibilidad. */ }
+    event.ports[0].postMessage({ type: 'OFFLINE_SHELL_STATUS', complete });
+  })());
 });
 
 async function respond(request) {

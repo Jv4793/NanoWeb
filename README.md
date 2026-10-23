@@ -39,7 +39,7 @@ La web sigue siendo estática, sin backend ni dependencias de ejecución. Para a
 python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-En Windows se puede usar `py -m http.server 8000 --bind 127.0.0.1`. Abrir `http://localhost:8000/`; `file://` no permite probar el service worker. Tras una primera carga completa y la instalación del worker, el contenido y las fotos quedan disponibles sin conexión. Vídeos y fuentes externas requieren Internet. Cerrar todas las pestañas de la web permite activar una actualización descargada; no es necesario borrar los datos en cada versión.
+En Windows se puede usar `py -m http.server 8000 --bind 127.0.0.1`. Abrir `http://localhost:8000/`; `file://` no permite probar el service worker. Esperar al aviso **«Disponible sin conexión»**, que comprueba los ocho recursos locales guardados. Después se pueden consultar el contenido y las fotos sin Internet; vídeos y fuentes externas requieren conexión. El aviso también distingue descarga incompleta y actualización descargada. Cerrar todas las pestañas de la web permite activar una actualización; no es necesario borrar los datos en cada versión.
 
 Con Node.js 22+ y sin instalar paquetes:
 
@@ -48,6 +48,6 @@ npm run check
 npm test
 ```
 
-La prueba opcional `npm run test:browser` requiere Playwright/Chromium ya disponibles. Consultar [el inventario, resultados, plataformas, límites de P2P y próximos pasos](docs/CONTINUAR.md).
+Las pruebas opcionales `npm run test:browser` y `npm run test:migration` requieren Playwright/Chromium ya disponibles. La segunda utiliza la versión v3 real conservada en el historial Git y verifica migración, fallo de descarga y recuperación por teclado. Consultar [el inventario, resultados, plataformas, límites de P2P y próximos pasos](docs/CONTINUAR.md).
 
 No hay licencia general del código declarada. Los créditos de imagen existentes deben revisarse antes de redistribuir. El remoto actual es público; esta entrega queda local hasta disponer de un destino propio privado y comprobar sus automatismos de despliegue. `private: true` en `package.json` evita publicar un paquete npm; no modifica la visibilidad de GitHub.

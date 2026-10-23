@@ -1,4 +1,4 @@
-# Primer incremento: copia local fiable
+# Copia local fiable, indicador accesible y migración v3
 
 ## Inventario y procedencia (2026-10-23)
 
@@ -11,6 +11,7 @@
 - No hay LICENSE del código ni licencia declarada en GitHub. Se conservan los créditos/licencias de imagen existentes, sin ampliarlos ni asignar una licencia nueva. Revisar procedencia y permisos antes de redistribuir.
 - La cuenta del conector coincide con el propietario y tiene permiso de escritura, pero GitHub declara el repositorio **público**. No satisface la instrucción de trabajo privado: esta entrega se conserva en la rama local `feat/reliable-offline-shell`, sin push, PR ni despliegue.
 - GitHub indica Pages habilitado; no hay workflows versionados. No se ha verificado la conexión externa con Netlify ni sus despliegues de ramas. El conector rechazó la lectura de `/deployments` como endpoint no permitido; no hubo escritura remota ni resultado incierto que conciliar.
+- Al retomar desde el commit local `68aee45fc00180cbd6d20e39d1fbd60438c416bd`, se confirmó de nuevo el remoto público sin avances y la ausencia de PRs mediante el conector. No se encontraron archivos de trabajo en `shared`, `scratch` o `library-files`; se preservaron esos directorios y el commit anterior.
 
 ## Cambio y contrato offline
 
@@ -20,9 +21,13 @@ Ahora el registro es estable. El worker descarga ocho recursos locales en instal
 
 Una navegación no guardada intenta red; sin red redirige a la página offline dentro del scope, conservando sus enlaces y estilos incluso al partir de una ruta profunda. Un recurso ausente falla como recurso, sin recibir HTML en su lugar. Se mantienen las cabeceras existentes, incluida la configuración de seguridad.
 
-Para preparar el uso sin conexión, abrir una vez mediante HTTPS o localhost con conexión y esperar a que el service worker termine de instalarse (`navigator.serviceWorker.ready` en herramientas de desarrollo). No basta con descargar solo el HTML. Después funcionan contenido, fotos, filtros y tema; YouTube y fuentes externas necesitan conexión. No se requiere una cuenta ni un backend para consultar la copia local. No se garantiza almacenamiento permanente: borrar datos, navegación privada, cuotas o expulsión del navegador pueden exigir descargar de nuevo.
+Para preparar el uso sin conexión, abrir una vez mediante HTTPS o localhost con conexión y esperar al aviso **«Disponible sin conexión»**. No basta con descargar solo el HTML ni con tener un worker activo: el aviso se confirma mediante MessageChannel, comprobando en la caché propia una respuesta correcta para cada uno de los ocho recursos del shell. Después funcionan contenido, fotos, filtros y tema; YouTube y fuentes externas necesitan conexión. No se requiere una cuenta ni un backend para consultar la copia local. No se garantiza almacenamiento permanente: borrar datos, navegación privada, cuotas o expulsión del navegador pueden exigir descargar de nuevo.
 
-Actualizar cualquier recurso del shell requiere incrementar `v4` en `service-worker.js`. Las actualizaciones esperan al cierre de todas las pestañas controladas; después se activa la copia completa. No se fuerza `skipWaiting`. Las cachés heredadas sin scope se dejan intactas para no borrar datos ambiguos de otras rutas; las futuras versiones solo retiran cachés antiguas de su propio scope. La migración desde un navegador con la versión v3 instalada no se probó en dispositivo real.
+El aviso es una región `role="status"`, `aria-live="polite"`, `aria-atomic="true"`, con texto visible sin depender del color. Distingue preparación, copia comprobada, uso offline, descarga fallida, navegador no compatible y actualización descargada pendiente de activación. Se vuelve a comprobar al cambiar el controlador o la conectividad y al regresar a la página. Las respuestas tardías de una comprobación anterior no pueden sobrescribir un resultado más reciente. Una v3 sin protocolo de comprobación no recibe un falso aviso de disponibilidad: la consulta caduca en cuatro segundos.
+
+Una instalación fallida ofrece **«Reintentar descarga»**; el botón vuelve a registrar/comprobar la actualización sin borrar la copia previa. Una caché parcial de un worker ya activo ofrece **«Comprobar actualización»**: si el script remoto es idéntico no se ejecuta otra instalación, por lo que no se promete reparar esa pérdida. Haría falta una versión nueva del shell. No se repuebla la caché activa desde la red porque podría mezclar versiones. La comprobación valida presencia y estado HTTP de las respuestas; no es una comprobación criptográfica ni una garantía contra expulsiones posteriores.
+
+Actualizar cualquier recurso del shell requiere incrementar `v5` en `service-worker.js`. Las actualizaciones esperan al cierre de todas las pestañas controladas; después se activa la copia completa. No se fuerza `skipWaiting`. Las cachés heredadas sin scope se dejan intactas para no borrar datos ambiguos de otras rutas; las futuras versiones solo retiran cachés antiguas de su propio scope. La migración v3 se probó con su código original en Chromium; falta validarla en dispositivos físicos y otros motores.
 
 ## Validación reproducible
 
@@ -35,24 +40,27 @@ npm run check
 npm test
 ```
 
-Resultado: **11/11 pasan**, cubriendo descarga incompleta, rutas raíz/subcarpeta, parámetros, cachés ajenas, fallos de recursos, aislamiento de scope y registro repetido/no disponible.
+Resultado actual: **21/21 pasan**, cubriendo descarga incompleta, rutas raíz/subcarpeta, parámetros, cachés ajenas, fallos de recursos, aislamiento de scope, registro repetido/no disponible, confirmación de los ocho recursos, error de registro, tiempo de espera del protocolo v3, actualización pendiente y respuestas tardías. Los tests de estado de interfaz utilizan dobles explícitos de DOM/worker/MessageChannel; se complementan con el navegador real.
 
 La prueba real requiere Playwright y un navegador ya instalados, provistos por el entorno de pruebas. No se añaden dependencias de ejecución ni un lockfile vacío. Si no están disponibles, la prueba falla y debe registrarse como no ejecutada; las pruebas unitarias siguen siendo utilizables.
 
 ```sh
 # En este entorno: Playwright 1.62.1, Chromium del sistema.
-CHROMIUM_PATH=/usr/bin/chromium SCREENSHOT_DIR=/tmp/alonso-qa npm run test:browser
+CHROMIUM_PATH=/usr/bin/chromium SCREENSHOT_DIR=/tmp/alonso-indicator-qa npm run test:browser
+CHROMIUM_PATH=/usr/bin/chromium SCREENSHOT_DIR=/tmp/alonso-migration-qa npm run test:migration
 ```
 
 Sin `CHROMIUM_PATH`, Playwright utiliza su Chromium instalado. `PLAYWRIGHT_MODULE` permite señalar un módulo Playwright disponible fuera del proyecto. Las variables son opcionales; en PowerShell se configuran con `$env:NOMBRE = 'valor'` antes de `npm run test:browser`.
 
 El test arranca y cierra su propio servidor estático en `127.0.0.1` y puerto efímero. Reproduce Cache-Control, Clear-Site-Data y nosniff de la configuración actual; no publica ni conecta un servicio externo. Browser plugin no está disponible: se usó Playwright directamente, sin instalar navegadores.
 
-Resultado: **4/4 escenarios pasan**, rutas `/` y `/NanoWeb/` a 1440×900 y 390×844, Node v24.19.0, Playwright 1.62.1, Chromium 154.0.8037.57 en Linux. Cada escenario verifica identidad, contenido no vacío, ausencia de errores JavaScript y avisos/errores de consola en el flujo principal, tres recargas offline, filtro WEC con dos entradas, fotos decodificadas, cambio de tema, ancho sin desbordamiento, marcador con parámetros, diagnóstico, fallback de ruta profunda y retorno al inicio. También verifica registro único y preservación de caché ajena. Se revisaron capturas; no se observó pantalla de error ni contenido en blanco.
+Smoke: **4/4 escenarios pasan**, rutas `/` y `/NanoWeb/` a 1440×900 y 390×844, Node v24.19.0, Playwright 1.62.1, Chromium 154.0.8037.57 en Linux. Cada escenario verifica identidad, contenido no vacío, ausencia de errores JavaScript y avisos/errores de consola en el flujo principal, tres recargas offline, filtro WEC con dos entradas, fotos decodificadas, cambio de tema, ancho sin desbordamiento, marcador con parámetros, diagnóstico, fallback de ruta profunda y retorno al inicio. También verifica registro único, preservación de caché ajena, estados ready/offline, atributos de la región accesible y detección de un recurso eliminado de CacheStorage. La comprobación por teclado de un worker sin cambios conserva el estado incompleto. Se revisaron capturas; no se observó pantalla de error ni contenido en blanco.
 
-Capturas de esta sesión fuera de Git: `/tmp/alonso-qa/offline-{root,subpath}-{1440,390}.png`. El test comprobó inicialmente el error de enlace en fallback profundo; tras corregirlo volvieron a pasar todos los escenarios.
+Migración: **4/4 escenarios pasan**, actualización directa y respuesta HTTP 503 durante la descarga, en ambas rutas. `tests/migration-v3.cjs` extrae archivos originales mediante `git show a25fe2f` (requiere ese objeto del historial), carga la aplicación original completa y confirma el registro `?version=final-v3` activo y los recursos precargados. Después sirve la versión nueva mediante un doble HTTP local; no simula las APIs de registro, CacheStorage o conectividad del navegador. Verifica el aviso de actualización descargada, la espera mientras quedan dos pestañas, activación natural tras cerrarlas, ocho recursos completos, un único registro, tema conservado en localStorage, tres recargas offline, filtros y diagnóstico. Un 503 deja la v3 activa y utilizable offline; la recuperación se hace con foco real y Enter sobre el botón de reintento. No hay errores JavaScript ni consola inesperada; solo se permiten los fallos de red deliberados descritos en el test.
 
-No ejecutado: Safari/WebKit, Firefox, instalación PWA real, dispositivos móviles físicos, Windows/macOS nativos, actualización desde v3 ya instalada, cuota agotada y Netlify real. La simulación móvil de Chromium es una prueba de viewport, no de iOS/Android. La conservación de caché con las cabeceras actuales solo está verificada en este Chromium.
+Capturas actuales fuera de Git: `/tmp/alonso-indicator-qa/offline-{root,subpath}-{1440,390}.png` y `/tmp/alonso-migration-qa/migration-v3-{root,subpath}-{direct,recovery}.png`. En el primer incremento se corrigió el enlace del fallback profundo. En este incremento, la revisión independiente detectó una promesa de redescarga que un worker idéntico no puede cumplir; se corrigieron el aviso y la acción, y se verificó que no se repuebla una caché activa mezclando versiones.
+
+No ejecutado: Safari/WebKit, Firefox, lector de pantalla real, instalación PWA como aplicación, dispositivos móviles físicos, Windows/macOS nativos, cuota agotada y Netlify real. La simulación móvil de Chromium es una prueba de viewport, no de iOS/Android. La conservación de caché con las cabeceras actuales solo está verificada en este Chromium. No hay scripts de lint/build configurados; se comprueba la sintaxis de producción y se ejecutan las suites anteriores.
 
 ## Plataformas: evaluar por separado
 
@@ -79,7 +87,7 @@ Windows/Linux/macOS podrían alojar un proceso local opcional, pero habría que 
 ## Siguiente hito y guardado remoto
 
 1. Resolver el destino GitHub **propio y privado**, la licencia/procedencia y comprobar que publicar una rama no inicia despliegues. No cambiar visibilidad, seguridad o credenciales como parte de esta entrega. No ejecutar push hacia el origin público.
-2. Probar la copia offline y la migración desde v3 en Safari/iOS y Android reales; ofrecer un indicador accesible de «contenido listo sin conexión» solo después de confirmar la descarga, con estados de error y actualización.
+2. Probar el indicador y la migración desde v3 en Safari/iOS y Android reales, incluyendo VoiceOver/TalkBack y condiciones de almacenamiento restringido. El indicador y la migración ya tienen cobertura Chromium.
 3. Mejorar accesibilidad de filtros (`aria-pressed`), teclado y movimiento reducido, con verificación manual mediante lector de pantalla. Definir una función de intercambio antes de considerar P2P.
 
-No se añadieron datos personales de usuarios ni se reutilizó la identidad personal configurada en Git para el nuevo commit. El entorno no expone metadatos verificables del modelo o nivel de razonamiento: la petición es GPT-6.1 Sol/high, sin afirmar una comprobación del backend ni haber solicitado un cambio de modelo. No se usaron subagentes.
+No se añadieron datos personales de usuarios ni se reutilizó la identidad personal configurada en Git para los commits nuevos. El entorno no expone metadatos verificables del modelo principal o nivel de razonamiento: la petición es GPT-6.1 Sol/high, sin afirmar una comprobación del backend ni haber solicitado un cambio de modelo principal. Para el segundo incremento se lanzó un subagente independiente con los parámetros observables `model: gpt-6.1-sol` y `reasoning_effort: high`, que preparó las pruebas de migración y revisó el indicador. Esos parámetros no verifican el backend ejecutado.

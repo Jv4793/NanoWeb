@@ -21,6 +21,8 @@ const elements = {
   navLinks: $('#navLinks'),
   imageStatus: $('#imageStatus'),
   checkImagesBtn: $('#checkImagesBtn'),
+  offlineStatus: $('#offlineStatus'),
+  offlineRetry: $('#offlineRetry'),
 };
 
 function escapeHTML(value) {
@@ -150,12 +152,103 @@ function checkImages() {
   }
 }
 
-async function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
+let offlineRegistration;
+let offlineCheck = 0;
+const observedOfflineWorkers = new WeakSet();
+
+function showOfflineStatus(state, text) {
+  elements.offlineStatus.dataset.state = state;
+  elements.offlineStatus.textContent = text;
+  elements.offlineRetry.hidden = !['error', 'unavailable'].includes(state);
+  elements.offlineRetry.textContent = state === 'unavailable' ? 'Comprobar actualización' : 'Reintentar descarga';
+}
+
+function queryOfflineShell(worker) {
+  return new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    const finish = (error, complete) => {
+      clearTimeout(timeout);
+      channel.port1.close();
+      channel.port2.close();
+      if (error) reject(error);
+      else resolve(complete);
+    };
+    const timeout = setTimeout(() => finish(new Error('No se pudo comprobar la copia local')), 4000);
+    channel.port1.onmessage = ({ data }) => {
+      if (data?.type === 'OFFLINE_SHELL_STATUS' && typeof data.complete === 'boolean') {
+        finish(null, data.complete);
+      }
+    };
+    try { worker.postMessage({ type: 'CHECK_OFFLINE_SHELL' }, [channel.port2]); }
+    catch (error) { finish(error); }
+  });
+}
+
+async function refreshOfflineStatus() {
+  const check = ++offlineCheck;
+  const waiting = offlineRegistration?.waiting;
+  const worker = waiting || navigator.serviceWorker.controller;
+  if (!worker) return;
+  try {
+    const complete = await queryOfflineShell(worker);
+    if (check !== offlineCheck) return;
+    if (!complete) {
+      showOfflineStatus('unavailable', 'La copia sin conexión está incompleta. Puedes consultar con conexión y comprobar si hay una actualización.');
+    } else if (waiting) {
+      showOfflineStatus('update-ready', 'Actualización descargada. Cierra todas las pestañas de esta web y vuelve a abrirla para usar la nueva copia.');
+    } else if (offlineRegistration?.installing) {
+      showOfflineStatus('updating', 'La copia guardada está disponible sin conexión. Descargando una actualización…');
+    } else if (navigator.onLine === false) {
+      showOfflineStatus('offline', 'Sin conexión: el contenido y las fotos están disponibles en este dispositivo. Los vídeos y las fuentes externas necesitan Internet.');
+    } else {
+      showOfflineStatus('ready', 'Disponible sin conexión: contenido y fotos guardados en este dispositivo. Los vídeos y las fuentes externas necesitan Internet.');
+    }
+  } catch {
+    if (check !== offlineCheck) return;
+    showOfflineStatus('unavailable', 'Aún no se ha podido verificar la copia sin conexión. Conéctate para comprobar si hay una actualización.');
+  }
+}
+
+function observeOfflineWorker(worker) {
+  if (!worker || observedOfflineWorkers.has(worker)) return;
+  observedOfflineWorkers.add(worker);
+  worker.addEventListener('statechange', () => {
+    if (worker.state === 'redundant') {
+      ++offlineCheck;
+      showOfflineStatus('error', 'No se pudo completar la descarga. Reinténtalo con conexión.');
+    } else {
+      refreshOfflineStatus();
+    }
+  });
+}
+
+async function registerServiceWorker(forceUpdate = false) {
+  ++offlineCheck;
+  if (!('serviceWorker' in navigator) || typeof MessageChannel === 'undefined') {
+    showOfflineStatus('unsupported', 'La lectura sin conexión no está disponible en este navegador. Puedes consultar la web con conexión.');
+    return;
+  }
+  showOfflineStatus('checking', 'Preparando el contenido para usarlo sin conexión…');
   try {
     // El navegador actualiza el worker sin borrar la copia disponible sin conexión.
-    await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+    const registration = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+    if (offlineRegistration !== registration) {
+      offlineRegistration = registration;
+      registration.addEventListener('updatefound', () => {
+        showOfflineStatus('checking', 'Descargando el contenido para usarlo sin conexión…');
+        observeOfflineWorker(registration.installing);
+        refreshOfflineStatus();
+      });
+    }
+    observeOfflineWorker(registration.installing);
+    // Reintentar explícitamente, sin consultas de red extra durante una visita offline.
+    if (forceUpdate && navigator.onLine !== false && !registration.installing && !registration.waiting && registration.active) {
+      registration.update().catch(() => undefined);
+    }
+    await refreshOfflineStatus();
   } catch (error) {
+    ++offlineCheck;
+    showOfflineStatus('error', 'No se pudo preparar la copia sin conexión. Conéctate y reintenta la descarga.');
     console.warn('No se pudo registrar el Service Worker:', error);
   }
 }
@@ -172,6 +265,16 @@ function init() {
   setupNav();
   elements.checkImagesBtn.addEventListener('click', checkImages);
   window.addEventListener('load', () => setTimeout(checkImages, 300));
+  elements.offlineRetry.addEventListener('click', () => registerServiceWorker(true));
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', refreshOfflineStatus);
+    window.addEventListener('online', refreshOfflineStatus);
+    window.addEventListener('offline', refreshOfflineStatus);
+    window.addEventListener('pageshow', refreshOfflineStatus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshOfflineStatus();
+    });
+  }
   registerServiceWorker();
 }
 
