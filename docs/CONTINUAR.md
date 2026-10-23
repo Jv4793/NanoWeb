@@ -1,4 +1,4 @@
-# Copia local fiable, indicador accesible y migración v3
+# Copia local fiable, migración v3 y accesibilidad comprobable
 
 ## Inventario y procedencia (2026-10-23)
 
@@ -27,7 +27,7 @@ El aviso es una región `role="status"`, `aria-live="polite"`, `aria-atomic="tru
 
 Una instalación fallida ofrece **«Reintentar descarga»**; el botón vuelve a registrar/comprobar la actualización sin borrar la copia previa. Una caché parcial de un worker ya activo ofrece **«Comprobar actualización»**: si el script remoto es idéntico no se ejecuta otra instalación, por lo que no se promete reparar esa pérdida. Haría falta una versión nueva del shell. No se repuebla la caché activa desde la red porque podría mezclar versiones. La comprobación valida presencia y estado HTTP de las respuestas; no es una comprobación criptográfica ni una garantía contra expulsiones posteriores.
 
-Actualizar cualquier recurso del shell requiere incrementar `v5` en `service-worker.js`. Las actualizaciones esperan al cierre de todas las pestañas controladas; después se activa la copia completa. No se fuerza `skipWaiting`. Las cachés heredadas sin scope se dejan intactas para no borrar datos ambiguos de otras rutas; las futuras versiones solo retiran cachés antiguas de su propio scope. La migración v3 se probó con su código original en Chromium; falta validarla en dispositivos físicos y otros motores.
+Actualizar cualquier recurso del shell requiere incrementar `v6` en `service-worker.js`. Las actualizaciones esperan al cierre de todas las pestañas controladas; después se activa la copia completa. No se fuerza `skipWaiting`. Las cachés heredadas sin scope se dejan intactas para no borrar datos ambiguos de otras rutas; las futuras versiones solo retiran cachés antiguas de su propio scope. La migración v3 se probó con su código original en Chromium; falta validarla en dispositivos físicos y otros motores.
 
 ## Validación reproducible
 
@@ -62,6 +62,27 @@ Capturas actuales fuera de Git: `/tmp/alonso-indicator-qa/offline-{root,subpath}
 
 No ejecutado: Safari/WebKit, Firefox, lector de pantalla real, instalación PWA como aplicación, dispositivos móviles físicos, Windows/macOS nativos, cuota agotada y Netlify real. La simulación móvil de Chromium es una prueba de viewport, no de iOS/Android. La conservación de caché con las cabeceras actuales solo está verificada en este Chromium. No hay scripts de lint/build configurados; se comprueba la sintaxis de producción y se ejecutan las suites anteriores.
 
+## Accesibilidad y otros motores: tercer incremento
+
+Se conserva el commit anterior `8125b19c6a2ab52d566f7b7abcc499e6688af5f2` y la misma rama local. El cambio funcional anuncia el filtro elegido mediante `aria-pressed` y su relación con la línea temporal mediante `aria-controls`. El menú móvil anuncia abrir/cerrar, se cierra con Escape y devuelve el foco al botón. El salto al contenido tiene destino enfocable; los enlaces y botones muestran un contorno explícito al usar teclado. Se respeta `prefers-reduced-motion` desactivando el desplazamiento suave. En tema claro, los controles de acento usan texto blanco sobre verde sólido en vez de texto oscuro sobre verde o un gradiente de contraste irregular. El icono de las páginas offline y diagnóstico ahora apunta al SVG ya cacheado, evitando una petición implícita a `/favicon.ico` sin conexión.
+
+```sh
+CHROMIUM_PATH=/usr/bin/chromium SCREENSHOT_DIR=/tmp/alonso-accessibility-qa npm run test:accessibility
+npm run test:engines
+# Selección explícita: falla si este motor no existe; nunca cae a Chromium.
+BROWSER_ENGINE=firefox npm run test:engines
+```
+
+`test:accessibility`: **8/8 escenarios pasan** en Chromium 154.0.8037.57/Linux, dos rutas × dos tamaños × dos temas. Usa el árbol accesible expuesto por Playwright, roles, nombres y estados, no un DOM simulado. Comprueba idioma, main/h1 únicos, referencias ARIA válidas, nombres accesibles de botones/enlaces, alt de galería, selección exclusiva de filtros mediante Espacio, foco conservado, menú con Enter/Tab/Escape, cambio de tema con teclado, salto al contenido, movimiento reducido, ancho sin desbordamiento, navegación offline profunda y vuelta al inicio con Enter. No hay errores JavaScript ni consola inesperada durante el flujo completo. La prueba inicial sobre la entrega anterior falló por falta de `aria-pressed`; otra ejecución detectó la petición offline del favicon, que se corrigió en producción.
+
+El contraste se calcula con los colores computados de filtro activo, botón principal, marca, enlace de salto e icono de reproducción, exigiendo al menos 4.5:1. Para los gradientes oscuros se comprueban los extremos de las dos paradas actuales; no es un análisis de todos los píxeles, fondos translúcidos ni todos los estados visuales. Referencias usadas: [contraste mínimo](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), [nombre, rol y valor](https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html) y [foco visible](https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html) de W3C WAI. No están instalados axe-core ni @axe-core/playwright; no se instalaron ni se sustituyó una auditoría completa por una afirmación de conformidad WCAG. Siguen pendientes lectores de pantalla, zoom/reflow ampliado, alto contraste del sistema y auditoría más extensa.
+
+Capturas y snapshots accesibles fuera de Git: `/tmp/alonso-accessibility-qa/a11y-{home,filter}-{root,subpath}-{dark,light}-{1440,390}.{png,txt}`; los snapshots txt corresponden solo al filtro. Se revisaron capturas de móvil y escritorio, incluido foco visible del filtro WEC en tema claro.
+
+`test:engines`: **Firefox y WebKit SKIP**, `tested=none`. No existen sus ejecutables en la caché de Playwright, ni Firefox de sistema en las rutas revisadas. Ningún motor alternativo se lanzó ni se presenta como aprobado. No hubo instalación ni ampliación de permisos. La selección explícita del motor o de una ruta inexistente/vacía devuelve error, sin fallback silencioso; se verificaron ocho casos negativos. El selector Chromium y la compatibilidad previa con `CHROMIUM_PATH` sí ejecutaron el smoke (4/4). Para una ruta ya disponible puede usarse `BROWSER_ENGINE=webkit BROWSER_EXECUTABLE_PATH=/ruta/al/ejecutable npm run test:engines`; el runner exige un archivo ejecutable y registra la versión realmente lanzada. Una falta de bibliotecas o error al lanzar cuenta como fallo, no como motor probado.
+
+Después de los cambios de producción pasan de nuevo los 21 tests unitarios, la comprobación de sintaxis, los cuatro smoke offline y los cuatro escenarios de migración v3. El shell se incrementa a v6 para que las copias existentes descarguen los cambios al actualizar.
+
 ## Plataformas: evaluar por separado
 
 | Plataforma | Camino coherente con esta entrega | Validación y límites pendientes |
@@ -88,6 +109,6 @@ Windows/Linux/macOS podrían alojar un proceso local opcional, pero habría que 
 
 1. Resolver el destino GitHub **propio y privado**, la licencia/procedencia y comprobar que publicar una rama no inicia despliegues. No cambiar visibilidad, seguridad o credenciales como parte de esta entrega. No ejecutar push hacia el origin público.
 2. Probar el indicador y la migración desde v3 en Safari/iOS y Android reales, incluyendo VoiceOver/TalkBack y condiciones de almacenamiento restringido. El indicador y la migración ya tienen cobertura Chromium.
-3. Mejorar accesibilidad de filtros (`aria-pressed`), teclado y movimiento reducido, con verificación manual mediante lector de pantalla. Definir una función de intercambio antes de considerar P2P.
+3. Validar la accesibilidad con lectores de pantalla, zoom/reflow y alto contraste; ejecutar el runner en Firefox/WebKit cuando estén disponibles mediante un entorno autorizado. Los filtros, foco, teclado y movimiento reducido ya tienen comprobaciones automatizadas. Definir una función de intercambio antes de considerar P2P.
 
-No se añadieron datos personales de usuarios ni se reutilizó la identidad personal configurada en Git para los commits nuevos. El entorno no expone metadatos verificables del modelo principal o nivel de razonamiento: la petición es GPT-6.1 Sol/high, sin afirmar una comprobación del backend ni haber solicitado un cambio de modelo principal. Para el segundo incremento se lanzó un subagente independiente con los parámetros observables `model: gpt-6.1-sol` y `reasoning_effort: high`, que preparó las pruebas de migración y revisó el indicador. Esos parámetros no verifican el backend ejecutado.
+No se añadieron datos personales de usuarios ni se reutilizó la identidad personal configurada en Git para los commits nuevos. El entorno no expone metadatos verificables del modelo principal o nivel de razonamiento: la petición es GPT-6.1 Sol/high, sin afirmar una comprobación del backend ni haber solicitado un cambio de modelo principal. En los incrementos segundo y tercero se lanzaron auxiliares independientes con los parámetros observables `model: gpt-6.1-sol` y `reasoning_effort: high`, para migración/revisión del indicador y selector de otros motores respectivamente. Esos parámetros no verifican el backend ejecutado.

@@ -19,7 +19,7 @@ Proyecto web educativo preparado para la prueba práctica de desarrollo web.
 1. Descomprime el ZIP.
 2. Comprueba que `index.html` está en la raíz de la carpeta.
 3. Arrastra la carpeta completa a Netlify Drop.
-4. Si venías de una versión anterior, abre la web con `Ctrl + F5` o limpia los datos del sitio.
+4. Si había una versión anterior, cierra todas las pestañas de la web para activar la actualización descargada y comprueba el aviso de disponibilidad sin conexión.
 
 ## Fuentes usadas
 
@@ -48,6 +48,8 @@ npm run check
 npm test
 ```
 
-Las pruebas opcionales `npm run test:browser` y `npm run test:migration` requieren Playwright/Chromium ya disponibles. La segunda utiliza la versión v3 real conservada en el historial Git y verifica migración, fallo de descarga y recuperación por teclado. Consultar [el inventario, resultados, plataformas, límites de P2P y próximos pasos](docs/CONTINUAR.md).
+Las pruebas opcionales `npm run test:browser`, `npm run test:migration` y `npm run test:accessibility` requieren Playwright/Chromium ya disponibles. La segunda utiliza la versión v3 real conservada en el historial Git y verifica migración, fallo de descarga y recuperación por teclado. La tercera comprueba semántica, filtros, teclado, foco, movimiento reducido, contraste de controles y fallback offline en ambos temas; no constituye una auditoría completa de accesibilidad.
+
+`npm run test:engines` intenta el smoke offline en Firefox y WebKit **solo si ya están instalados**; comunica `SKIP` si faltan. Seleccionar expresamente un motor mediante `BROWSER_ENGINE=firefox` o `webkit` hace que su ausencia sea un error, sin sustituirlo por Chromium. No se instala software. Consultar [el inventario, resultados, plataformas, límites de P2P y próximos pasos](docs/CONTINUAR.md).
 
 No hay licencia general del código declarada. Los créditos de imagen existentes deben revisarse antes de redistribuir. El remoto actual es público; esta entrega queda local hasta disponer de un destino propio privado y comprobar sus automatismos de despliegue. `private: true` en `package.json` evita publicar un paquete npm; no modifica la visibilidad de GitHub.

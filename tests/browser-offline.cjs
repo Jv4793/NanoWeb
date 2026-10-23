@@ -2,8 +2,9 @@
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const { readFile, mkdir } = require('node:fs/promises');
+const { accessSync, constants, statSync } = require('node:fs');
 const path = require('node:path');
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const playwright = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 
 const root = path.resolve(__dirname, '..');
 const files = new Set(['index.html', 'app.js', 'styles.css', 'service-worker.js',
@@ -12,6 +13,14 @@ const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript',
   '.css': 'text/css', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
 
 async function main() {
+  const engine = process.env.BROWSER_ENGINE ?? 'chromium';
+  assert.ok(['chromium', 'firefox', 'webkit'].includes(engine), `Unsupported BROWSER_ENGINE: ${engine}`);
+  const executablePath = process.env.BROWSER_EXECUTABLE_PATH
+    ?? (engine === 'chromium' ? process.env.CHROMIUM_PATH : undefined);
+  if (executablePath !== undefined) {
+    assert.ok(executablePath && statSync(executablePath).isFile(), `Browser executable is not a file: ${executablePath}`);
+    accessSync(executablePath, constants.X_OK);
+  }
   // Reproduce las cabeceras comunes existentes en Netlify sin publicar la web.
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -32,10 +41,11 @@ async function main() {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   let browser;
   try {
-    browser = await chromium.launch({
-      ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
+    browser = await playwright[engine].launch({
+      ...(executablePath !== undefined ? { executablePath } : {}),
       headless: true,
     });
+    console.log(`${engine} ${browser.version()}; Browser plugin not available; Playwright fallback; loopback-only test server`);
     for (const route of ['/', '/NanoWeb/']) {
       for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
         const context = await browser.newContext({ viewport });
@@ -115,7 +125,6 @@ async function main() {
         } finally { await context.close(); }
       }
     }
-    console.log(`Chromium ${browser.version()}; Browser plugin not available; Playwright fallback; loopback-only test server`);
   } finally {
     if (browser) await browser.close();
     await new Promise((resolve) => server.close(resolve));

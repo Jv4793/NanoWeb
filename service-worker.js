@@ -1,6 +1,6 @@
 // Cambiar la versión al modificar cualquier archivo de APP_SHELL.
 const CACHE_PREFIX = `alonso-career-hub:${self.registration.scope}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v5`;
+const CACHE_NAME = `${CACHE_PREFIX}v6`;
 const APP_SHELL = [
   './',
   './index.html',

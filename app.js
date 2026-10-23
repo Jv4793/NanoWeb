@@ -63,8 +63,11 @@ function renderTimeline(filter = 'Todos') {
 function setupFilters() {
   $$('.filter-btn').forEach((button) => {
     button.addEventListener('click', () => {
-      $$('.filter-btn').forEach((btn) => btn.classList.remove('active'));
-      button.classList.add('active');
+      $$('.filter-btn').forEach((btn) => {
+        const selected = btn === button;
+        btn.classList.toggle('active', selected);
+        btn.setAttribute('aria-pressed', String(selected));
+      });
       renderTimeline(button.dataset.filter);
     });
   });
@@ -130,14 +133,22 @@ function setupTheme() {
 }
 
 function setupNav() {
-  elements.navToggle.addEventListener('click', () => {
-    const isOpen = elements.navLinks.classList.toggle('open');
+  const setOpen = (isOpen, restoreFocus = false) => {
+    elements.navLinks.classList.toggle('open', isOpen);
     elements.navToggle.setAttribute('aria-expanded', String(isOpen));
+    elements.navToggle.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
+    if (restoreFocus) elements.navToggle.focus();
+  };
+  elements.navToggle.addEventListener('click', () => {
+    setOpen(!elements.navLinks.classList.contains('open'));
   });
   elements.navLinks.addEventListener('click', (event) => {
-    if (event.target.matches('a')) {
-      elements.navLinks.classList.remove('open');
-      elements.navToggle.setAttribute('aria-expanded', 'false');
+    if (event.target.matches('a')) setOpen(false);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && elements.navLinks.classList.contains('open')) {
+      event.preventDefault();
+      setOpen(false, true);
     }
   });
 }
