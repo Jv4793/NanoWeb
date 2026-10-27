@@ -42,12 +42,15 @@ self.addEventListener('message', (event) => {
 });
 
 async function respond(request) {
-  const cache = await caches.open(CACHE_NAME);
+  let cache;
   const url = new URL(request.url);
   // Los marcadores con parámetros de navegación usan la misma página local.
   if (request.mode === 'navigate') url.search = '';
-  const cached = await cache.match(url.href);
-  if (cached) return cached;
+  try {
+    cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(url.href);
+    if (cached) return cached;
+  } catch { /* Caché denegada o desalojada: todavía se puede usar la red. */ }
 
   try {
     return await fetch(request);
@@ -56,7 +59,9 @@ async function respond(request) {
     if (request.mode !== 'navigate') throw error;
     const fallbackURL = new URL('./offline.html', self.registration.scope).href;
     // La URL propia del fallback mantiene correctos sus enlaces en rutas profundas.
-    return await cache.match(fallbackURL) ? Response.redirect(fallbackURL) : Response.error();
+    let fallback;
+    try { fallback = await cache?.match(fallbackURL); } catch { /* Sin fallback verificable. */ }
+    return fallback ? Response.redirect(fallbackURL) : Response.error();
   }
 }
 
