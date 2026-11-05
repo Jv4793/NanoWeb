@@ -1,0 +1,15 @@
+{
+  "name": "alonso-career-hub",
+  "private": true,
+  "scripts": {
+    "check": "node --check app.js && node --check service-worker.js",
+    "test": "node --test tests/*.test.cjs",
+    "test:browser": "node tests/browser-offline.cjs",
+    "test:migration": "node tests/migration-v3.cjs",
+    "test:accessibility": "node tests/accessibility.cjs",
+    "test:engines": "node tests/offline-engines.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
