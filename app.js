@@ -121,13 +121,18 @@ function renderSources() {
 }
 
 function setupTheme() {
-  const saved = localStorage.getItem('theme') || 'dark';
+  let saved = 'dark';
+  try {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') saved = stored;
+  } catch { /* El navegador puede denegar almacenamiento; el tema sigue funcionando en memoria. */ }
   document.documentElement.dataset.theme = saved;
   elements.themeToggle.textContent = saved === 'dark' ? '🌙' : '☀️';
   elements.themeToggle.addEventListener('click', () => {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
-    localStorage.setItem('theme', next);
+    try { localStorage.setItem('theme', next); }
+    catch { /* Mantener el cambio visible aunque no se pueda persistir. */ }
     elements.themeToggle.textContent = next === 'dark' ? '🌙' : '☀️';
   });
 }

@@ -50,6 +50,15 @@ async function main() {
       for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
         const context = await browser.newContext({ viewport });
         try {
+          const storageDenied = viewport.width < 720;
+          if (storageDenied) {
+            await context.addInitScript(() => {
+              Object.defineProperty(window, 'localStorage', {
+                configurable: true,
+                get() { throw new DOMException('Storage denied by test policy', 'SecurityError'); },
+              });
+            });
+          }
           const errors = [];
           const page = await context.newPage();
           page.on('pageerror', (error) => errors.push(error.message));
@@ -121,7 +130,7 @@ async function main() {
           await page.keyboard.press('Enter');
           await page.waitForFunction(() => document.querySelector('#offlineStatus').dataset.state === 'unavailable');
           assert.match(await page.locator('#offlineStatus').innerText(), /incompleta/);
-          console.log(`PASS ${route} ${viewport.width}x${viewport.height}: accessible readiness, 3 offline reloads, filters, photos, theme, query, diagnostics, fallback, cache preservation, incomplete-copy detection`);
+          console.log(`PASS ${route} ${viewport.width}x${viewport.height}: accessible readiness, 3 offline reloads, filters, photos, theme${storageDenied ? ' with denied localStorage' : ''}, query, diagnostics, fallback, cache preservation, incomplete-copy detection`);
         } finally { await context.close(); }
       }
     }
